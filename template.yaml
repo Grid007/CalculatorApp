@@ -6,7 +6,7 @@ Resources:
   CalculatorFunction:
     Type: AWS::Serverless::Function
     Properties:
-      Handler: calculator.lambda_handler
+      Handler: src/calculator.lambda_handler
       Runtime: python3.8
       CodeUri: .
       MemorySize: 128
