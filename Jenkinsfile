@@ -3,7 +3,7 @@ pipeline {
         docker {
             // Use the official AWS SAM CLI Docker image
             image 'amazon/aws-sam-cli-build-image:python3.8'
-            label 'docker-agent'
+            
         }
     }
 
