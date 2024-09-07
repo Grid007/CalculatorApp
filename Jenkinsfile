@@ -18,40 +18,72 @@ pipeline {
             }
         }
 
+        stage('Setup Permissions') {
+            steps {
+                script {
+                    // Change permissions to ensure the Jenkins user can write to required directories
+                    sh '''
+                    chmod -R 777 /var/lib/jenkins/workspace
+                    chmod -R 777 /tmp
+                    '''
+                }
+            }
+        }
+
         stage('Install Dependencies') {
             steps {
-                sh '''
-                python3 -m pip install --upgrade pip
-                python3 -m pip install wheel
-                '''
+                script {
+                    // Create and activate a virtual environment
+                    sh '''
+                    python3 -m venv /tmp/venv
+                    chmod -R 777 /tmp/venv
+                    . /tmp/venv/bin/activate
+                    pip install --upgrade pip
+                    pip install wheel
+                    '''
+                }
             }
         }
 
         stage('Build') {
             steps {
-                sh 'sam build'
+                script {
+                    // Activate virtual environment and build the SAM project
+                    sh '''
+                    . /tmp/venv/bin/activate
+                    sam build
+                    '''
+                }
             }
         }
 
         stage('Package') {
             steps {
-                sh '''
-                sam package \
-                  --output-template-file packaged.yaml \
-                  --s3-bucket ${S3_BUCKET}
-                '''
+                script {
+                    // Activate virtual environment and package the Lambda function
+                    sh '''
+                    . /tmp/venv/bin/activate
+                    sam package \
+                      --output-template-file packaged.yaml \
+                      --s3-bucket ${S3_BUCKET}
+                    '''
+                }
             }
         }
 
         stage('Deploy') {
             steps {
-                sh '''
-                sam deploy \
-                  --template-file packaged.yaml \
-                  --stack-name ${STACK_NAME} \
-                  --capabilities CAPABILITY_IAM \
-                  --region ${AWS_DEFAULT_REGION}
-                '''
+                script {
+                    // Activate virtual environment and deploy the CloudFormation stack
+                    sh '''
+                    . /tmp/venv/bin/activate
+                    sam deploy \
+                      --template-file packaged.yaml \
+                      --stack-name ${STACK_NAME} \
+                      --capabilities CAPABILITY_IAM \
+                      --region ${AWS_DEFAULT_REGION}
+                    '''
+                }
             }
         }
     }
