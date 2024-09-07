@@ -11,10 +11,10 @@ pipeline {
     PROD_STACK_NAME = 'sam-pipe-prod'
 
     // IAM Roles for Testing and Production
-    TESTING_PIPELINE_EXECUTION_ROLE = 'arn:aws:iam::<account-id>:role/testing-pipeline-execution-role'
-    TESTING_CLOUDFORMATION_EXECUTION_ROLE = 'arn:aws:iam::<account-id>:role/testing-cloudformation-execution-role'
-    PROD_PIPELINE_EXECUTION_ROLE = 'arn:aws:iam::<account-id>:role/prod-pipeline-execution-role'
-    PROD_CLOUDFORMATION_EXECUTION_ROLE = 'arn:aws:iam::<account-id>:role/prod-cloudformation-execution-role'
+    TESTING_PIPELINE_EXECUTION_ROLE = 'arn:aws:iam::592789829210:role/testing-pipeline-execution-role'
+    TESTING_CLOUDFORMATION_EXECUTION_ROLE = 'arn:aws:iam::592789829210:role/testing-cloudformation-execution-role'
+    PROD_PIPELINE_EXECUTION_ROLE = 'arn:aws:iam::592789829210:role/prod-pipeline-execution-role'
+    PROD_CLOUDFORMATION_EXECUTION_ROLE = 'arn:aws:iam::592789829210:role/prod-cloudformation-execution-role'
     
     // S3 Buckets for Storing Artifacts
     TESTING_ARTIFACTS_BUCKET = 'aws-sam-cli-managed-dev-pipeline'
