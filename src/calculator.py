@@ -1,9 +1,17 @@
 import json
 
 def lambda_handler(event, context):
-    operation = event['pathParameters']['operation']
-    a = int(event['pathParameters']['a'])
-    b = int(event['pathParameters']['b'])
+    print("Received event:", json.dumps(event, indent=2))  # Log the event object
+
+    try:
+        operation = event['pathParameters']['operation']
+        a = int(event['pathParameters']['a'])
+        b = int(event['pathParameters']['b'])
+    except KeyError as e:
+        return {
+            'statusCode': 400,
+            'body': json.dumps({'message': f'Missing key: {str(e)}'})
+        }
 
     if operation == 'add':
         result = add(a, b)
