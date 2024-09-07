@@ -30,11 +30,10 @@ pipeline {
     stage('unit-test') {
       steps {
         script {
-          echo "Running unit tests"
-          // Place your unit testing command here, e.g., pytest or npm test
+          echo "Running unit tests with unittest discover"
+          // Using unittest's discovery to run all tests in the tests/ directory
           sh '''
-            # Example: if using pytest for Python
-            pytest
+            python3 -m unittest discover -s tests
           '''
         }
       }
