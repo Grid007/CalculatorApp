@@ -17,11 +17,6 @@ pipeline {
     
     TESTING_REGION = 'ap-south-1'
     PROD_REGION = 'ap-south-1'
-    
-    // Prevent SAM CLI from writing telemetry data
-    SAM_CLI_TELEMETRY = '0'
-    // Use a writable directory for SAM CLI configuration
-    SAM_CLI_CONFIG = '$WORKSPACE/sam-config'
   }
   stages {
     stage('unit-test') {
@@ -61,7 +56,11 @@ pipeline {
       agent {
         docker {
           image 'public.ecr.aws/sam/build-provided'
+          args '--user 0:0 -v /var/run/docker.sock:/var/run/docker.sock'
         }
+      }
+      environment {
+        SAM_CLI_CONFIG_DIR = '$WORKSPACE/sam-config' // Specify a writable directory for SAM CLI
       }
       steps {
         echo "Deploying to Testing Environment"
@@ -79,6 +78,65 @@ pipeline {
       }
     }
 
-    // Add further stages as needed (integration test, deploy to prod, etc.)
+    stage('integration-test') {
+      steps {
+        echo "Running integration tests"
+        // Add your integration tests here
+      }
+    }
+
+    stage('build-and-package-prod') {
+      agent {
+        docker {
+          image 'public.ecr.aws/sam/build-provided'
+          args '--user 0:0 -v /var/run/docker.sock:/var/run/docker.sock'
+        }
+      }
+      steps {
+        echo "Building and packaging for Production"
+        sh 'sam build --template ${SAM_TEMPLATE} --use-container'
+        withAWS(credentials: env.PIPELINE_USER_CREDENTIAL_ID, region: env.PROD_REGION, role: env.PROD_PIPELINE_EXECUTION_ROLE) {
+          sh '''
+            sam package --s3-bucket ${PROD_ARTIFACTS_BUCKET} --region ${PROD_REGION} --output-template-file packaged-prod.yaml
+          '''
+        }
+
+        // Archive the packaged artifacts
+        archiveArtifacts artifacts: 'packaged-prod.yaml'
+      }
+    }
+
+    stage('deploy-production') {
+      agent {
+        docker {
+          image 'public.ecr.aws/sam/build-provided'
+          args '--user 0:0 -v /var/run/docker.sock:/var/run/docker.sock'
+        }
+      }
+      environment {
+        SAM_CLI_CONFIG_DIR = '$WORKSPACE/sam-config' // Specify a writable directory for SAM CLI
+      }
+      steps {
+        echo "Deploying to Production Environment"
+        withAWS(credentials: env.PIPELINE_USER_CREDENTIAL_ID, region: env.PROD_REGION, role: env.PROD_PIPELINE_EXECUTION_ROLE) {
+          sh '''
+            sam deploy --stack-name ${PROD_STACK_NAME} \
+              --template-file packaged-prod.yaml \
+              --capabilities CAPABILITY_IAM \
+              --region ${PROD_REGION} \
+              --s3-bucket ${PROD_ARTIFACTS_BUCKET} \
+              --no-fail-on-empty-changeset \
+              --role-arn ${PROD_CLOUDFORMATION_EXECUTION_ROLE}
+          '''
+        }
+      }
+    }
+
+    stage('cleanup') {
+      steps {
+        echo "Cleaning up"
+        // Add cleanup steps if needed
+      }
+    }
   }
 }

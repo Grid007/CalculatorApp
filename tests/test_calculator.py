@@ -1,7 +1,6 @@
 import unittest
 from src.calculator import add, subtract, multiply
 
-
 class TestCalculator(unittest.TestCase):
 
     def test_add(self):
