@@ -41,35 +41,28 @@ pipeline {
 
     // Stage: Build and Package (For all branches)
     stage('build-and-package') {
-      agent {
-        docker {
-          image 'public.ecr.aws/sam/build-provided'
-          args '--user 0:0 -v /var/run/docker.sock:/var/run/docker.sock'
-        }
-      }
-      steps {
-        echo "Building and packaging with SAM"
-
-        // Build and package for Testing environment
-        sh 'sam build --template ${SAM_TEMPLATE} --use-container'
-        withAWS(credentials: env.PIPELINE_USER_CREDENTIAL_ID, region: env.TESTING_REGION, role: env.TESTING_PIPELINE_EXECUTION_ROLE) {
-          sh '''
-             sam package --s3-bucket ${TESTING_ARTIFACTS_BUCKET} --region ${TESTING_REGION} --output-template-file packaged-testing.yaml
-          '''
-        }
-
-        // Build and package for Production environment
-        withAWS(credentials: env.PIPELINE_USER_CREDENTIAL_ID, region: env.PROD_REGION, role: env.PROD_PIPELINE_EXECUTION_ROLE) {
-          sh '''
-            sam package --s3-bucket ${PROD_ARTIFACTS_BUCKET} --region ${PROD_REGION} --output-template-file packaged-prod.yaml
-          '''
-        }
-
-        // Archive the packaged artifacts
-        archiveArtifacts artifacts: 'packaged-testing.yaml'
-        archiveArtifacts artifacts: 'packaged-prod.yaml'
+    agent {
+      docker {
+        image 'public.ecr.aws/sam/build-provided'
+        args '--user 0:0 -v /var/run/docker.sock:/var/run/docker.sock'
       }
     }
+    steps {
+      echo "Building and packaging with SAM"
+      
+      // Debug step to inspect the configuration
+      sh 'cat samconfig.toml || echo "No samconfig.toml found"'
+      sh 'env'
+
+      // Build and package for Testing environment
+      sh 'sam build --template ${SAM_TEMPLATE} --use-container'
+      withAWS(credentials: env.PIPELINE_USER_CREDENTIAL_ID, region: env.TESTING_REGION, role: env.TESTING_PIPELINE_EXECUTION_ROLE) {
+        sh '''
+          sam package --s3-bucket ${TESTING_ARTIFACTS_BUCKET} --region ${TESTING_REGION} --output-template-file packaged-testing.yaml
+        '''
+      }
+    }
+  }
 
     // Stage: Deploy to Testing Environment (Always Runs)
     stage('deploy-testing') {
