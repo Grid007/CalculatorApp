@@ -1,138 +1,90 @@
 pipeline {
   agent any
   environment {
+    // AWS Credentials stored in Jenkins
     PIPELINE_USER_CREDENTIAL_ID = 'aws-access'
     SAM_TEMPLATE = 'template.yaml'
+    
+    // Branch and Stack Names
     MAIN_BRANCH = 'main'
     TESTING_STACK_NAME = 'sam-pipe-dev'
-    TESTING_PIPELINE_EXECUTION_ROLE = 'arn:aws:iam::592789829210:role/aws-sam-cli-managed-dev-pipel-PipelineExecutionRole-87kZ0YKd50ZD'
-    TESTING_CLOUDFORMATION_EXECUTION_ROLE = 'arn:aws:iam::592789829210:role/aws-sam-cli-managed-dev-p-CloudFormationExecutionRo-p0BxzsS6k9gr'
-    TESTING_ARTIFACTS_BUCKET = 'aws-sam-cli-managed-dev-pipeline-r-artifactsbucket-5xu5ikopmgzs'
-    // If there are functions with "Image" PackageType in your template,
-    // uncomment the line below and add "--image-repository ${TESTING_IMAGE_REPOSITORY}" to
-    // testing "sam package" and "sam deploy" commands.
-    // TESTING_IMAGE_REPOSITORY = '0123456789.dkr.ecr.region.amazonaws.com/repository-name'
-    TESTING_REGION = 'ap-south-1'
     PROD_STACK_NAME = 'sam-pipe-prod'
-    PROD_PIPELINE_EXECUTION_ROLE = 'arn:aws:iam::592789829210:role/aws-sam-cli-managed-prod-pipe-PipelineExecutionRole-kQLSS8Ph06qW'
-    PROD_CLOUDFORMATION_EXECUTION_ROLE = 'arn:aws:iam::592789829210:role/aws-sam-cli-managed-prod--CloudFormationExecutionRo-8cpmYd0hATfa'
-    PROD_ARTIFACTS_BUCKET = 'aws-sam-cli-managed-prod-pipeline--artifactsbucket-xtw0s9zf73um'
-    // If there are functions with "Image" PackageType in your template,
-    // uncomment the line below and add "--image-repository ${PROD_IMAGE_REPOSITORY}" to
-    // prod "sam package" and "sam deploy" commands.
-    // PROD_IMAGE_REPOSITORY = '0123456789.dkr.ecr.region.amazonaws.com/repository-name'
+
+    // IAM Roles for Testing and Production
+    TESTING_PIPELINE_EXECUTION_ROLE = 'arn:aws:iam::<account-id>:role/testing-pipeline-execution-role'
+    TESTING_CLOUDFORMATION_EXECUTION_ROLE = 'arn:aws:iam::<account-id>:role/testing-cloudformation-execution-role'
+    PROD_PIPELINE_EXECUTION_ROLE = 'arn:aws:iam::<account-id>:role/prod-pipeline-execution-role'
+    PROD_CLOUDFORMATION_EXECUTION_ROLE = 'arn:aws:iam::<account-id>:role/prod-cloudformation-execution-role'
+    
+    // S3 Buckets for Storing Artifacts
+    TESTING_ARTIFACTS_BUCKET = 'aws-sam-cli-managed-dev-pipeline'
+    PROD_ARTIFACTS_BUCKET = 'aws-sam-cli-managed-prod-pipeline'
+    
+    // AWS Regions
+    TESTING_REGION = 'ap-south-1'
     PROD_REGION = 'ap-south-1'
   }
   stages {
-    // uncomment and modify the following step for running the unit-tests
-    // stage('test') {
-    //   steps {
-    //     sh '''
-    //       # trigger the tests here
-    //     '''
-    //   }
-    // }
-
-    stage('build-and-deploy-feature') {
-      // this stage is triggered only for feature branches (feature*),
-      // which will build the stack and deploy to a stack named with branch name.
-      when {
-        branch 'feature*'
-      }
-      agent {
-        docker {
-          // If you only use a single runtime, replace with a proper image from 
-          // https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-image-repositories.html
-          // And remove --use-container option in sam build command below
-          image 'public.ecr.aws/sam/build-provided'
-          args '--user 0:0 -v /var/run/docker.sock:/var/run/docker.sock'
-        }
-      }
+    
+    // Stage: Unit Testing
+    stage('unit-test') {
       steps {
-        sh 'sam build --template ${SAM_TEMPLATE} --use-container'
-        withAWS(
-            credentials: env.PIPELINE_USER_CREDENTIAL_ID,
-            region: env.TESTING_REGION,
-            role: env.TESTING_PIPELINE_EXECUTION_ROLE,
-            roleSessionName: 'deploying-feature') {
+        script {
+          echo "Running unit tests"
+          // Place your unit testing command here, e.g., pytest or npm test
           sh '''
-            sam deploy --stack-name $(echo ${BRANCH_NAME} | tr -cd '[a-zA-Z0-9-]') \
-              --capabilities CAPABILITY_IAM \
-              --region ${TESTING_REGION} \
-              --s3-bucket ${TESTING_ARTIFACTS_BUCKET} \
-              --no-fail-on-empty-changeset \
-              --role-arn ${TESTING_CLOUDFORMATION_EXECUTION_ROLE}
+            # Example: if using pytest for Python
+            pytest
           '''
         }
       }
     }
 
+    // Stage: Build and Package (For all branches)
     stage('build-and-package') {
-      when {
-        branch env.MAIN_BRANCH
-      }
       agent {
         docker {
-          // If you only use a single runtime, replace with a proper image from 
-          // https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-image-repositories.html
-          // And remove --use-container option in sam build command below
           image 'public.ecr.aws/sam/build-provided'
           args '--user 0:0 -v /var/run/docker.sock:/var/run/docker.sock'
         }
       }
       steps {
+        echo "Building and packaging with SAM"
+
+        // Build and package for Testing environment
         sh 'sam build --template ${SAM_TEMPLATE} --use-container'
-        withAWS(
-            credentials: env.PIPELINE_USER_CREDENTIAL_ID,
-            region: env.TESTING_REGION,
-            role: env.TESTING_PIPELINE_EXECUTION_ROLE,
-            roleSessionName: 'testing-packaging') {
+        withAWS(credentials: env.PIPELINE_USER_CREDENTIAL_ID, region: env.TESTING_REGION, role: env.TESTING_PIPELINE_EXECUTION_ROLE) {
           sh '''
-            sam package \
-              --s3-bucket ${TESTING_ARTIFACTS_BUCKET} \
-              --region ${TESTING_REGION} \
-              --output-template-file packaged-testing.yaml
+            sam package --s3-bucket ${TESTING_ARTIFACTS_BUCKET} --region ${TESTING_REGION} --output-template-file packaged-testing.yaml
           '''
         }
 
-        withAWS(
-            credentials: env.PIPELINE_USER_CREDENTIAL_ID,
-            region: env.PROD_REGION,
-            role: env.PROD_PIPELINE_EXECUTION_ROLE,
-            roleSessionName: 'prod-packaging') {
+        // Build and package for Production environment
+        withAWS(credentials: env.PIPELINE_USER_CREDENTIAL_ID, region: env.PROD_REGION, role: env.PROD_PIPELINE_EXECUTION_ROLE) {
           sh '''
-            sam package \
-              --s3-bucket ${PROD_ARTIFACTS_BUCKET} \
-              --region ${PROD_REGION} \
-              --output-template-file packaged-prod.yaml
+            sam package --s3-bucket ${PROD_ARTIFACTS_BUCKET} --region ${PROD_REGION} --output-template-file packaged-prod.yaml
           '''
         }
 
+        // Archive the packaged artifacts
         archiveArtifacts artifacts: 'packaged-testing.yaml'
         archiveArtifacts artifacts: 'packaged-prod.yaml'
       }
     }
 
+    // Stage: Deploy to Testing Environment (Always Runs)
     stage('deploy-testing') {
-      when {
-        branch env.MAIN_BRANCH
-      }
       agent {
         docker {
-          // If you only use a single runtime, replace with a proper image from 
-          // https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-image-repositories.html
           image 'public.ecr.aws/sam/build-provided'
         }
       }
       steps {
-        withAWS(
-            credentials: env.PIPELINE_USER_CREDENTIAL_ID,
-            region: env.TESTING_REGION,
-            role: env.TESTING_PIPELINE_EXECUTION_ROLE,
-            roleSessionName: 'testing-deployment') {
+        echo "Deploying to Testing Environment"
+        withAWS(credentials: env.PIPELINE_USER_CREDENTIAL_ID, region: env.TESTING_REGION, role: env.TESTING_PIPELINE_EXECUTION_ROLE) {
           sh '''
             sam deploy --stack-name ${TESTING_STACK_NAME} \
-              --template packaged-testing.yaml \
+              --template-file packaged-testing.yaml \
               --capabilities CAPABILITY_IAM \
               --region ${TESTING_REGION} \
               --s3-bucket ${TESTING_ARTIFACTS_BUCKET} \
@@ -143,42 +95,33 @@ pipeline {
       }
     }
 
-    // uncomment and modify the following step for running the integration-tests
-    // stage('integration-test') {
-    //   when {
-    //     branch env.MAIN_BRANCH
-    //   }
-    //   steps {
-    //     sh '''
-    //       # trigger the integration tests here
-    //     '''
-    //   }
-    // }
-
-    stage('deploy-prod') {
-      when {
-        branch env.MAIN_BRANCH
+    // Stage: Integration Testing
+    stage('integration-test') {
+      steps {
+        script {
+          echo "Running integration tests"
+          // Run your integration tests here
+          sh '''
+            # Example: integration tests, replace with your specific tests
+            ./run-integration-tests.sh
+          '''
+        }
       }
+    }
+
+    // Stage: Deploy to Production (Runs for all branches)
+    stage('deploy-prod') {
       agent {
         docker {
-          // If you only use a single runtime, replace with a proper image from 
-          // https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-image-repositories.html
           image 'public.ecr.aws/sam/build-provided'
         }
       }
       steps {
-        // uncomment this to have a manual approval step before deployment to production
-        // timeout(time: 24, unit: 'HOURS') {
-        //   input 'Please confirm before starting production deployment'
-        // }
-        withAWS(
-            credentials: env.PIPELINE_USER_CREDENTIAL_ID,
-            region: env.PROD_REGION,
-            role: env.PROD_PIPELINE_EXECUTION_ROLE,
-            roleSessionName: 'prod-deployment') {
+        echo "Deploying to Production Environment"
+        withAWS(credentials: env.PIPELINE_USER_CREDENTIAL_ID, region: env.PROD_REGION, role: env.PROD_PIPELINE_EXECUTION_ROLE) {
           sh '''
             sam deploy --stack-name ${PROD_STACK_NAME} \
-              --template packaged-prod.yaml \
+              --template-file packaged-prod.yaml \
               --capabilities CAPABILITY_IAM \
               --region ${PROD_REGION} \
               --s3-bucket ${PROD_ARTIFACTS_BUCKET} \
