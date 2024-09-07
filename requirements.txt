@@ -1,3 +1,4 @@
 pytest
 boto3
 requests
+charset-normalizer==3.3.2
