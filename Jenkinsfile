@@ -46,7 +46,7 @@ pipeline {
                     // Activate virtual environment and build the SAM project
                     sh '''
                     . /tmp/venv/bin/activate
-                    sam build --template ${SAM_TEMPLATE} --use-container
+                    sam build --template ${SAM_TEMPLATE} 
                     '''
                 }
             }
