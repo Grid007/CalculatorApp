@@ -18,25 +18,12 @@ pipeline {
             }
         }
 
-        stage('Setup Permissions') {
-            steps {
-                script {
-                    // Change permissions to ensure the Jenkins user can write to required directories
-                    sh '''
-                    chmod -R 777 /var/lib/jenkins/workspace
-                    chmod -R 777 /tmp
-                    '''
-                }
-            }
-        }
-
         stage('Install Dependencies') {
             steps {
                 script {
                     // Create and activate a virtual environment
                     sh '''
                     python3 -m venv /tmp/venv
-                    chmod -R 777 /tmp/venv
                     . /tmp/venv/bin/activate
                     pip install --upgrade pip
                     pip install wheel
