@@ -8,8 +8,9 @@ pipeline {
 
     environment {
         AWS_DEFAULT_REGION = 'ap-south-1'  // Specify your AWS region
-        S3_BUCKET = 'my-calc-app'  // Replace with your actual S3 bucket
+        S3_BUCKET = 'my-calc-store'  // Replace with your actual S3 bucket
         STACK_NAME = 'simple-calculator'  // Replace with your CloudFormation stack name
+        PIP_TARGET = '/tmp/pip'  // Directory to install pip packages
     }
 
     stages {
@@ -23,10 +24,10 @@ pipeline {
         stage('Install Dependencies') {
             steps {
                 script {
-                    // Upgrade pip and install wheel using --user flag to avoid permission issues
+                    // Upgrade pip and install wheel using --target to avoid permission issues
                     sh '''
-                        python3 -m pip install --upgrade --user pip
-                        python3 -m pip install --user wheel
+                        python3 -m pip install --upgrade pip --target ${PIP_TARGET}
+                        python3 -m pip install wheel --target ${PIP_TARGET}
                     '''
                 }
             }
@@ -35,7 +36,10 @@ pipeline {
         stage('Build') {
             steps {
                 // Build the SAM project
-                sh 'sam build'
+                sh '''
+                export PYTHONPATH=$PYTHONPATH:${PIP_TARGET}
+                sam build
+                '''
             }
         }
 
