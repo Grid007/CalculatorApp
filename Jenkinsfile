@@ -17,6 +17,11 @@ pipeline {
     
     TESTING_REGION = 'ap-south-1'
     PROD_REGION = 'ap-south-1'
+    
+    // Prevent SAM CLI from writing telemetry data
+    SAM_CLI_TELEMETRY = '0'
+    // Use a writable directory for SAM CLI configuration
+    SAM_CLI_CONFIG = '$WORKSPACE/sam-config'
   }
   stages {
     stage('unit-test') {
