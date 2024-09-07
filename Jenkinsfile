@@ -1,13 +1,13 @@
 pipeline {
     agent {
         docker {
-            // Use the official AWS Lambda Python 3.8 build image
+            // Use the official AWS Lambda Docker image for Python 3.8
             image 'lambci/lambda:build-python3.8'
         }
     }
 
     environment {
-        AWS_DEFAULT_REGION = 'ap-south-1'  // AWS region, can be customized
+        AWS_DEFAULT_REGION = 'ap-south-1'  // Specify your AWS region
         S3_BUCKET = 'my-calc-app'  // Replace with your actual S3 bucket
         STACK_NAME = 'simple-calculator'  // Replace with your CloudFormation stack name
     }
@@ -23,10 +23,10 @@ pipeline {
         stage('Install Dependencies') {
             steps {
                 script {
-                    // Upgrade pip and install wheel before running SAM build
+                    // Upgrade pip and install wheel using --user flag to avoid permission issues
                     sh '''
-                        python3 -m pip install --upgrade pip
-                        python3 -m pip install wheel
+                        python3 -m pip install --upgrade --user pip
+                        python3 -m pip install --user wheel
                     '''
                 }
             }
@@ -66,7 +66,7 @@ pipeline {
 
     post {
         always {
-            // Clean up the workspace after the build process
+            // Cleanup workspace
             cleanWs()
         }
         success {
